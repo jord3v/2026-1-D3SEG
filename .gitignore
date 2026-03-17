@@ -1,0 +1,22 @@
+# Configurações do Composer
+/vendor/
+composer.lock
+
+# Variáveis de Ambiente
+.env
+/.env
+
+# MacOS
+.DS_Store
+
+# IDEs e Editores
+/.idea
+/.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Logs
+*.log

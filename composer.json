@@ -1,0 +1,14 @@
+{
+    "name": "d3seg/app",
+    "description": "D3SEG Project App",
+    "type": "project",
+    "require": {
+        "vlucas/phpdotenv": "5.6"
+    },
+    "authors": [
+        {
+            "name": "jord3v",
+            "email": "jorge.miguel@aluno.ifsp.edu.br"
+        }
+    ]
+}
