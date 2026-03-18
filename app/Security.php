@@ -26,6 +26,53 @@ class Security
     }
 
     /**
+     * Verifica se o usuário está logado E se ele é ADMINISTRADOR.
+     * Caso contrário, exibe Acesso Negado (HTTP 403).
+     */
+    public static function requireAdmin(): void
+    {
+        // Garante ao menos que está logado
+        self::requireAuth();
+
+        // Checa a regra de negócio do Perfil
+        if ($_SESSION['perfil'] !== 'admin') {
+            http_response_code(403);
+            die("<h1>403 Forbidden</h1><p>Acesso negado. Apenas administradores podem visualizar esta página.</p>");
+        }
+    }
+
+    /**
+     * Verifica se o usuário está logado E se ele NÃO é um administrador.
+     * Caso contrário (se for admin ou visitante), exibe Acesso Negado (HTTP 403).
+     */
+    public static function requireComum(): void
+    {
+        self::requireAuth();
+
+        if ($_SESSION['perfil'] === 'admin') {
+            http_response_code(403);
+            die("<h1>403 Forbidden</h1><p>Acesso negado. Esta página é restrita a usuários comuns.</p>");
+        }
+    }
+
+    /**
+     * Avalia a sessão atual e redireciona o usuário para a página do seu perfil.
+     * Deve ser chamada quando o usuário não deveria ver a tela de login.
+     */
+    public static function redirectByRole(): void
+    {
+        self::initSession();
+        if (isset($_SESSION['usuario_id'])) {
+            if ($_SESSION['perfil'] === 'admin') {
+                header("Location: /administradores");
+            } else {
+                header("Location: /usuarios");
+            }
+            exit;
+        }
+    }
+
+    /**
      * Destrói inteiramente a sessão do usuário e redireciona para a tela de login.
      */
     public static function logout(): void
