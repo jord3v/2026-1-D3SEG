@@ -1,15 +1,65 @@
 <?php
 
+declare(strict_types=1);
+
+
 class Security
 {
     /**
      * Inicia e gerencia a sessão, garantindo que seja chamada apenas uma vez.
+     * Implementa Cookie de Segurança e Expiração de Inatividade.
      */
     public static function initSession(): void
     {
         if (session_status() === PHP_SESSION_NONE) {
+            // Requisitos de mitigação de vulnerabilidades (SameSite Strict, HTTPOnly, etc)
+            session_set_cookie_params([
+                'lifetime' => 0,
+                'path' => '/',
+                'domain' => '',
+                'secure' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on',
+                'httponly' => true,
+                'samesite' => 'Strict'
+            ]);
             session_start();
         }
+
+        // Requisito: Expirar sessão por inatividade (Trava de 30 minutos = 1800 segs)
+        $timeout = 1800;
+        if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity']) > $timeout) {
+            session_unset();
+            session_destroy();
+            header("Location: /login");
+            exit;
+        }
+        $_SESSION['last_activity'] = time();
+    }
+
+    /**
+     * Gera um token único anti-CSRF e o armazena na sessão
+     * @return string O token CSRF seguro
+     */
+    public static function generateCsrfToken(): string
+    {
+        self::initSession();
+        if (empty($_SESSION['csrf_token'])) {
+            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        }
+        return $_SESSION['csrf_token'];
+    }
+
+    /**
+     * Verifica se o token recebido no POST é idêntico ao armazenado na Sessão.
+     * @param string $token Recebido do formulário
+     * @return bool True se confere, False se for um ataque.
+     */
+    public static function verifyCsrfToken(string $token): bool
+    {
+        self::initSession();
+        if (empty($_SESSION['csrf_token'])) {
+            return false;
+        }
+        return hash_equals($_SESSION['csrf_token'], $token);
     }
 
     /**
@@ -98,9 +148,12 @@ class Security
         $stmt->execute([$usuario]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        // password_verify() checa a senha crua com o Hash do Bcrypt originário do BD
+        // password_verify() checa a senha crua com o Hash (sabe lidar sozinho com Bcrypt ou Argon2id)
         if ($user && password_verify($senhaDigitada, $user['senha'])) {
             
+            // Requisito: Regenerar o ID da Sessão previne ataques de Fixação de Sessão.
+            session_regenerate_id(true);
+
             // Sucesso! Popula a sessão "oficial" do sistema com os dados necessários.
             $_SESSION['usuario_id'] = $user['id'];
             $_SESSION['usuario_nome'] = $user['usuario'];

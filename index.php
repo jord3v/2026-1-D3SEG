@@ -1,5 +1,8 @@
 <?php
 
+declare(strict_types=1);
+
+
 require_once __DIR__ . '/app/config.php';
 require_once __DIR__ . '/app/Security.php';
 
@@ -12,8 +15,9 @@ if ($requestUri === '' || $requestUri === false) {
     $requestUri = '/';
 }
 
-switch ($requestUri) {
-    case '/':
+try {
+    switch ($requestUri) {
+        case '/':
         // A rota raiz não tem mais conteúdo próprio, leva para a página padrão (login)
         header("Location: /login");
         exit;
@@ -24,6 +28,13 @@ switch ($requestUri) {
 
         // Lógica de recebimento do formulário
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            
+            $csrfToken = $_POST['csrf_token'] ?? '';
+            if (!Security::verifyCsrfToken($csrfToken)) {
+                http_response_code(403);
+                die("Erro 403: Requisição inválida ou expirada (CSRF Mismatch). Volte e tente novamente.");
+            }
+
             require_once __DIR__ . '/app/database.php';
             
             $usuario = trim($_POST['usuario'] ?? '');
@@ -68,6 +79,13 @@ switch ($requestUri) {
         Security::requireAdmin();
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+            $csrfToken = $_POST['csrf_token'] ?? '';
+            if (!Security::verifyCsrfToken($csrfToken)) {
+                http_response_code(403);
+                die("Erro 403: Requisição inválida ou expirada (CSRF Mismatch). Volte e tente novamente.");
+            }
+
             require_once __DIR__ . '/app/database.php';
 
             $novoUsuario = trim($_POST['usuario'] ?? '');
@@ -84,8 +102,8 @@ switch ($requestUri) {
                 if ($stmtCheck->fetch()) {
                     $erro = "Já existe um cadastro com este nome de usuário.";
                 } else {
-                    // Bcrypt entra em ação
-                    $hash = password_hash($novaSenha, PASSWORD_BCRYPT);
+                    // Requisito: Argon2id Hashing Seguro
+                    $hash = password_hash($novaSenha, PASSWORD_ARGON2ID);
                     
                     $stmtInsert = $pdo->prepare("INSERT INTO usuarios (usuario, senha, perfil) VALUES (?, ?, ?)");
                     if ($stmtInsert->execute([$novoUsuario, $hash, $novoPerfil])) {
@@ -108,4 +126,9 @@ switch ($requestUri) {
         http_response_code(404);
         echo "<h1>Erro 404</h1><p>A página que você está procurando não existe neste servidor.</p>";
         break;
+    }
+} catch (\Throwable $e) {
+    http_response_code(500);
+    // Bloqueia qualquer vazamento de stack-trace (não exibe mensagens detalhadas pro cliente final)
+    echo "<h1>Erro 500</h1><p>Ocorreu um erro interno no servidor. Por favor, tente novamente mais tarde.</p>";
 }

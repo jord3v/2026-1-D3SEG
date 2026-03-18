@@ -15,6 +15,8 @@
         <?php endif; ?>
 
         <form action="/login" method="POST">
+            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(Security::generateCsrfToken()); ?>">
+            
             <div class="mb-3">
                 <label for="usuario" class="form-label">Usuário</label>
                 <input type="text" class="form-control" id="usuario" name="usuario" required autofocus>
